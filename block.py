@@ -6,20 +6,31 @@ import hashutils
 
 
 class Block:
-    def __init__(self, index: int, hash: str, previous_hash, timestamp: int, data: str):
+    def __init__(self, index: int, hash: str, previous_hash, timestamp: int, data: str, nonce: int, difficulty: int):
         self.index = index
         self.previous_hash = previous_hash
         self.data = data
         self.timestamp = timestamp
         self.hash = hash
-
+        self.nonce = nonce
+        self.difficulty = difficulty
 
     @classmethod
     def from_dict(cls, dict):
-        return cls(dict['index'], dict['hash'], dict['previous_hash'], dict['timestamp'], dict['data'])
+        return cls(dict['index'], dict['hash'], dict['previous_hash'], dict['timestamp'], dict['data'], dict['nonce'], dict['difficulty'])
+
+    @classmethod
+    def partial(cls, dict): #For unit testing only
+        return cls(dict.get('index'),
+                   dict.get('hash'),
+                   dict.get('previous_hash'),
+                   dict.get('timestamp'),
+                   dict.get('data'),
+                   dict.get('nonce'),
+                   dict.get('difficulty'))
 
     def calculate_hash_for_block(self) -> str:
-        return hashutils.calculate_hash(self.index, self.previous_hash, self.timestamp, self.data)
+        return hashutils.calculate_hash(self.index, self.previous_hash, self.timestamp, self.data, self.nonce, self.difficulty)
 
     def validate_block_structure(self) -> bool:
         return (

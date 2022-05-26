@@ -1,3 +1,5 @@
+from functools import reduce
+import operator
 import hashutils
 from block import Block
 
@@ -5,48 +7,99 @@ import datetime
 
 class Blockchain:
 
+    # in seconds
+    BLOCK_GENERATION_INTERVAL: int = 10
+
+    # in blocks
+    DIFFICULTY_ADJUSTMENT_INTERVAL: int = 10
+
     def __init__(self):
         self.chain = [genesis_block]
 
     def generate_next_block (self, block_data: str) -> Block:
         previous_block: Block = self.get_latest_block()
         next_index: int = previous_block.index + 1
-        next_timestamp: int = int(datetime.datetime.now().timestamp())
-        next_hash: str = hashutils.calculate_hash(next_index, previous_block.hash, next_timestamp, block_data)
-        new_block: Block = Block(next_index, next_hash, previous_block.hash, next_timestamp, block_data)
+        next_timestamp: int = get_current_timestamp()
+        difficulty = self.get_difficulty()
+        new_block: Block = self.find_block(next_index, previous_block.hash, next_timestamp, block_data, difficulty)
         self.add_block(new_block)
         return new_block
 
-    def add_block(self, new_block):
-        try:
-            validate_new_block(new_block, self.get_latest_block())
-        except ValueError:
-            return False
+    def find_block(self, next_index, previous_hash, next_timestamp, block_data, difficulty) -> Block:
+        nonce = 0
+        while True:
+            next_hash: str = hashutils.calculate_hash(next_index, previous_hash, next_timestamp, block_data, nonce, difficulty)
 
+            if hashutils.hash_matches_difficulty(next_hash, difficulty):
+                new_block: Block = Block(next_index, next_hash, previous_hash, next_timestamp, block_data, nonce, difficulty)
+                return new_block
+            nonce += 1
+
+    def add_block(self, new_block):
+        validate_new_block(new_block, self.get_latest_block())
         self.chain.append(new_block)
-        return True
+
 
     def get_latest_block(self) -> Block:
         return self.chain[-1]
 
     def replace_chain(self, new_chain: [Block]):
         validate_chain(new_chain)
-        if len(new_chain) <= len(self.chain):
-            raise ValueError("New chain must be longer than old chain")
+        if get_accumulated_difficulty(new_chain) <= get_accumulated_difficulty(self.chain):
+            raise ValueError("New chain must have higher accumulated difficulty than the old")
         self.chain = new_chain
+
+    def get_difficulty(self) -> int:
+        latest_block: Block = self.get_latest_block()
+        if latest_block.index % self.DIFFICULTY_ADJUSTMENT_INTERVAL == 0 and latest_block.index != 0:
+            return self.get_adjusted_difficulty()
+        else:
+            return latest_block.difficulty
+
+    def get_adjusted_difficulty(self) -> int:
+        latest_block: Block = self.get_latest_block()
+        prev_adjustment_block: Block = self.chain[-self.DIFFICULTY_ADJUSTMENT_INTERVAL]
+        time_expected: int = self.BLOCK_GENERATION_INTERVAL * self.DIFFICULTY_ADJUSTMENT_INTERVAL
+        time_taken: int = latest_block.timestamp - prev_adjustment_block.timestamp
+        if time_taken < time_expected / 2:
+            return prev_adjustment_block.difficulty + 1
+        elif time_taken > time_expected * 2:
+            return prev_adjustment_block.difficulty - 1
+        else:
+            return prev_adjustment_block.difficulty
+
+
+def get_accumulated_difficulty(chain: [Block]) -> int:
+    return reduce(operator.add, map(lambda block: 2**block.difficulty, chain))
 
 
 def validate_new_block(new_block: Block, previous_block: Block):
     if not new_block.validate_block_structure():
+        print("Validation Failed: Block scructure is invalid")
         raise ValueError('Block scructure is invalid')
     if previous_block.index + 1 != new_block.index:
+        print("Validation Failed: The index of the block must be one number larger than the previous")
         raise ValueError('The index of the block must be one number larger than the previous')
     if previous_block.hash != new_block.previous_hash:
+        print("Validation Failed: The previousHash of the block match the hash of the previous block")
         raise ValueError('The previousHash of the block match the hash of the previous block')
     if new_block.calculate_hash_for_block() != new_block.hash:
+        print("Validation Failed: The hash of the block itself must be valid")
         raise ValueError("The hash of the block itself must be valid")
+    if new_block.timestamp > get_current_timestamp() + 60:
+        print("Validation Failed: The new block's timestamp is more than 60s in the future")
+        raise ValueError("The new block's timestamp is more than 60s in the future")
+    if new_block.timestamp < previous_block.timestamp - 60:
+        print("Validation Failed: The new block's timestamp is more than 60s behind the previous block")
+        raise ValueError("Validation Failed: The new block's timestamp is more than 60s behind the previous block")
+
     return True
 
+
+
+
+def get_current_timestamp():
+    return int(datetime.datetime.now().timestamp())
 
 def validate_chain(blockchain: [Block]):
     if blockchain[0] != genesis_block:
@@ -57,5 +110,5 @@ def validate_chain(blockchain: [Block]):
     return True
 
 genesis_block: Block = Block(
-    0, '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca', None, 1465154705, 'my genesis block!!'
+    0, '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca', None, 1465154705, 'my genesis block!!', 0, 0
 )

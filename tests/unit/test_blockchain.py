@@ -1,15 +1,18 @@
 import unittest
 import block
 import blockchain
+import hashutils
 from blockchain import Blockchain
 
 class BlockchainTestCase(unittest.TestCase):
     def test_validate_chain(self):
         new_block = block.Block(1,
-                                "67c18b4716799348311c3f94a3d15ef3520dc991ab84b7844679b4cf224bf66b",
+                                "1eae5f6c30c0db442a35c2930a1a04a51c3d7365c9051f0e5c63f3f778a86e95",
                                 "2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca",
                                 1465154705,
-                                "Some Block Data")
+                                "Some Block Data",
+                                0,
+                                0)
 
         self.assertTrue(blockchain.validate_chain([blockchain.genesis_block, new_block]))
 
@@ -36,6 +39,30 @@ class BlockchainTestCase(unittest.TestCase):
 
         self.assertEqual(next_block.data, "This is the 3rd block in the chain")
         self.assertEqual(next_block.previous_hash, first_block.hash)
+
+
+    def test_find_block(self):
+        new_blockchain = Blockchain()
+        block = new_blockchain.find_block(1, '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca', 123, 'test2', 1)
+        self.assertEqual(block.nonce, 1)
+        self.assertTrue(hashutils.hex_to_bin(block.hash).startswith('0'))
+
+
+    def test_find_block_more_difficult(self):
+        new_blockchain = Blockchain()
+        block = new_blockchain.find_block(1, '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca', 123, 'test_again', 4)
+        self.assertEqual(block.nonce, 9)
+        print(hashutils.hex_to_bin(block.hash))
+        self.assertTrue(hashutils.hex_to_bin(block.hash).startswith('0000'))
+
+
+    def test_get_accumulated_difficulty(self):
+        block0 = block.Block.partial({'difficulty': 0})
+        block1 = block.Block.partial({'difficulty': 2})
+        block2 = block.Block.partial({'difficulty': 5})
+        block3 = block.Block.partial({'difficulty': 3})
+        total = blockchain.get_accumulated_difficulty([block0, block1, block2, block3])
+        self.assertEqual(total, 45)
 
 
 if __name__ == '__main__':

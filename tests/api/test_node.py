@@ -83,8 +83,8 @@ class NodeTestCase(unittest.TestCase):
     def test_add_peer_1_new_block(self, m):
 
         new_block = {'data': 'block_2',
-                         'hash': '9c42979fcf2e3a1144d40b4561659169b838b948dda3478b72af7f2f50acca44', 'index': 1,
-                         'previous_hash': blockchain.genesis_block.hash, 'timestamp': 1465154705}
+                         'hash': 'ff51f5f4f0719e898068a207527f04f7b8dfaef9cbaa04a228f179ee905fb091', 'index': 1,
+                         'previous_hash': blockchain.genesis_block.hash, 'timestamp': 1465154705, 'nonce': 0, 'difficulty': 0}
 
 
 
@@ -107,23 +107,23 @@ class NodeTestCase(unittest.TestCase):
     def test_add_peer_replace_chain(self, m):
         full_chain = [
             {'data': 'my genesis block!!', 'hash': '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca',
-             'index': 0, 'previous_hash': None, 'timestamp': 1465154705},
-            {'data': 'block 1', 'hash': '7f591ef218a9ac27f4c2b5ef6a4d715768ac54c70ce5e2a84d8c0b66cb99918c', 'index': 1,
+             'index': 0, 'previous_hash': None, 'timestamp': 1465154705, 'nonce': 0, 'difficulty': 0},
+            {'data': 'block 1', 'hash': '56a251be770d2859bfa9677f77496d59c32a1486074559bcd186269c237a009e', 'index': 1,
              'previous_hash': '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca',
-             'timestamp': 1652975062},
-            {'data': 'block 2', 'hash': 'e00d7f7f73e4124e0c814c16bef2d1736816b5e1d3e154ce4dc7181ecea889c6', 'index': 2,
-             'previous_hash': '7f591ef218a9ac27f4c2b5ef6a4d715768ac54c70ce5e2a84d8c0b66cb99918c',
-             'timestamp': 1652975062},
-            {'data': 'block 3', 'hash': 'cb97e8b6f89d6308b078f2f8aee75993416c9fcf812517759b529c641c757bd9', 'index': 3,
-             'previous_hash': 'e00d7f7f73e4124e0c814c16bef2d1736816b5e1d3e154ce4dc7181ecea889c6',
-             'timestamp': 1652975062},
-            {'data': 'block 4', 'hash': 'aac97e31d385139061c7224353604a2490e0082e7e1cf1bd5a806cc616a5d1e3', 'index': 4,
-             'previous_hash': 'cb97e8b6f89d6308b078f2f8aee75993416c9fcf812517759b529c641c757bd9',
-             'timestamp': 1652975062}]
+             'timestamp': 1652975062, 'nonce': 0, 'difficulty': 0},
+            {'data': 'block 2', 'hash': '2ad34364df30644b9ba6754d23ff50bdc584b311bc9743c29bc98d4578132850', 'index': 2,
+             'previous_hash': '56a251be770d2859bfa9677f77496d59c32a1486074559bcd186269c237a009e',
+             'timestamp': 1652975062, 'nonce': 0, 'difficulty': 0},
+            {'data': 'block 3', 'hash': 'b0d6462436e5a08cc6f0d03c4e20e5f217e2cd1fc8557fb8140d88cdcfbb20a2', 'index': 3,
+             'previous_hash': '2ad34364df30644b9ba6754d23ff50bdc584b311bc9743c29bc98d4578132850',
+             'timestamp': 1652975062, 'nonce': 0, 'difficulty': 0},
+            {'data': 'block 4', 'hash': '66a138c8e64ffc1258f45e2a6300b0cd21dfd7a5470d715f8c38466a9cea5d05', 'index': 4,
+             'previous_hash': 'b0d6462436e5a08cc6f0d03c4e20e5f217e2cd1fc8557fb8140d88cdcfbb20a2',
+             'timestamp': 1652975062, 'nonce': 0, 'difficulty': 0}]
 
         new_block = {'data': 'block_3',
-                         'hash': '9c42979fcf2e3a1144d40b4561659169b838b948dda3478b72af7f2f50acca44', 'index': 2,
-                         'previous_hash': '14f2979fcf2e3a1144d40b4561659169b838b948dda3478b72af7f2f50acca42', 'timestamp': 1465154705}
+                         'hash': 'ff51f5f4f0719e898068a207527f04f7b8dfaef9cbaa04a228f179ee905fb091', 'index': 2,
+                         'previous_hash': '14f2979fcf2e3a1144d40b4561659169b838b948dda3478b72af7f2f50acca42', 'timestamp': 1465154705, 'nonce': 0, 'difficulty': 0}
 
         with app.test_client() as test_client:
             m.get('http://testhost:8002/latest-block', json=new_block)
