@@ -5,6 +5,10 @@ from block import Block
 
 import datetime
 
+from transactions import UnspentTxOut
+import transactions
+
+
 class Blockchain:
 
     # in seconds
@@ -15,6 +19,9 @@ class Blockchain:
 
     def __init__(self):
         self.chain = [genesis_block]
+        self.unspent_tx_outs: [UnspentTxOut] = []
+
+
 
     def generate_next_block (self, block_data: str) -> Block:
         previous_block: Block = self.get_latest_block()
@@ -35,8 +42,12 @@ class Blockchain:
                 return new_block
             nonce += 1
 
-    def add_block(self, new_block):
+    def add_block(self, new_block: Block):  # Todo: Handle failures
         validate_new_block(new_block, self.get_latest_block())
+        updated_unspent_tx_outs: [UnspentTxOut] = transactions.process_transactions(new_block.data,
+                                                                                    self.unspent_tx_outs,
+                                                                                    new_block.index)
+        self.unspent_tx_outs = updated_unspent_tx_outs
         self.chain.append(new_block)
 
 
@@ -67,6 +78,7 @@ class Blockchain:
             return prev_adjustment_block.difficulty - 1
         else:
             return prev_adjustment_block.difficulty
+
 
 
 def get_accumulated_difficulty(chain: [Block]) -> int:

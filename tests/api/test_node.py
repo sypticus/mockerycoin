@@ -1,4 +1,6 @@
 import unittest
+from unittest.mock import patch
+
 import requests_mock
 
 import blockchain
@@ -23,9 +25,10 @@ class NodeTestCase(unittest.TestCase):
             self.assertEqual(json['host'], 'localhost')  # add assertion here
             self.assertEqual(json['port'], 8001)  # add assertion here
 
-
-    def test_mine_blocks(self):
+    @patch('transactions.process_transactions')  # Dont want to test Transactions here, just the blockchain
+    def test_mine_blocks(self, transactions_mock):
         with app.test_client() as test_client:
+            transactions_mock.return_value.transactions_mock.return_value = []
             headers = {'Content-type': 'application/json'}
             response = test_client.post('/mine-block', json={'block_data': 'block 1'}, headers=headers)
 
@@ -80,8 +83,9 @@ class NodeTestCase(unittest.TestCase):
 
 
     @requests_mock.mock()
-    def test_add_peer_1_new_block(self, m):
-
+    @patch('transactions.process_transactions')  # Dont want to test Transactions here, just the blockchain
+    def test_add_peer_1_new_block(self, m, transactions_mock):
+        transactions_mock.return_value.transactions_mock.return_value = []
         new_block = {'data': 'block_2',
                          'hash': 'ff51f5f4f0719e898068a207527f04f7b8dfaef9cbaa04a228f179ee905fb091', 'index': 1,
                          'previous_hash': blockchain.genesis_block.hash, 'timestamp': 1465154705, 'nonce': 0, 'difficulty': 0}
@@ -143,6 +147,8 @@ class NodeTestCase(unittest.TestCase):
             self.assertEqual(full_chain[3]['data'], 'block 3')
             self.assertEqual(full_chain[4]['data'], 'block 4')
 
+
+#TODO: Tests for Adjusted Difficulty
 
 if __name__ == '__main__':
     unittest.main()

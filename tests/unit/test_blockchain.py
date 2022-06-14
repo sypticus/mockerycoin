@@ -1,4 +1,6 @@
 import unittest
+from unittest.mock import patch
+
 import block
 import blockchain
 import hashutils
@@ -17,7 +19,10 @@ class BlockchainTestCase(unittest.TestCase):
         self.assertTrue(blockchain.validate_chain([blockchain.genesis_block, new_block]))
 
 
-    def test_generate_next_block(self):
+    @patch('transactions.process_transactions') #Dont want to test Transactions here, just the blockchain
+    def test_generate_next_block(self, transactions_mock):
+
+        transactions_mock.return_value.transactions_mock.return_value = []
 
         new_blockchain = Blockchain()
 

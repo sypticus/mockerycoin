@@ -8,3 +8,7 @@ Werkzeug==2.1.2
 zipp==3.8.0
 flask-sock
 requests-mock
+requests~=2.27.1
+socketio~=0.2.1
+ecdsa~=0.17.0
+starkbank-ecdsa

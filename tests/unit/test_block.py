@@ -2,7 +2,7 @@ import unittest
 import block
 
 
-class MyTestCase(unittest.TestCase):
+class BlockTestCase(unittest.TestCase):
 
     def test_create_block(self):
         new_block = block.Block(1,

@@ -1,9 +1,25 @@
 import hashlib
 
+import ellipticcurve
+from ellipticcurve import Signature, PublicKey
+from ellipticcurve.ecdsa import Ecdsa
+from ellipticcurve.privateKey import PrivateKey
 
 def calculate_hash(index: int, previous_hash: str, timestamp: int, data: str, nonce: int, difficulty: int) -> str:
     body = str(index) + str(previous_hash) + str(timestamp) + str(data) + str(nonce) + str(difficulty)
+    return sha256(body)
+
+
+def sha256(body: str) -> str:
     return hashlib.sha256(body.encode('utf-8')).hexdigest()
+
+
+def byte_array_to_hex(body: [bytes]) -> str:
+    return bytes(body).hex()
+
+
+def hex_to_byte_array(body: str) -> [bytes]:
+    return bytes.fromhex(body)
 
 
 def hash_matches_difficulty(hash: str, difficulty: int) -> bool:
@@ -26,3 +42,23 @@ def hex_to_bin(hash: str) -> str:
     for i in hash:
         ret += lookup_table[i]
     return ret
+
+
+def get_public_key_from_private (aPrivateKey: str) -> str:
+    return PrivateKey.fromString(aPrivateKey).publicKey().toString(True)
+
+
+def get_signature_string(private_key_string: str, data_to_sign) -> str:
+    key = PrivateKey.fromString(private_key_string)
+    signature: str = byte_array_to_hex(Ecdsa.sign(data_to_sign, key).toDer())
+    return signature
+
+
+def verify_signature(pub_key_str, signature_str, message) -> bool:
+    signature: Signature = signature_from_string(signature_str)
+    key = PublicKey.fromString(pub_key_str)
+    return Ecdsa.verify(message, signature, key)
+
+
+def signature_from_string(signature_str: str) -> Signature:
+    return Signature.fromDer(hex_to_byte_array(signature_str))
