@@ -1,12 +1,11 @@
-import json
 
-from flask import jsonify
 
 import hashutils
+from transactions import Transaction
 
 
 class Block:
-    def __init__(self, index: int, hash: str, previous_hash, timestamp: int, data: str, nonce: int, difficulty: int):
+    def __init__(self, index: int, hash: str, previous_hash, timestamp: int, data: [Transaction], nonce: int, difficulty: int):
         self.index = index
         self.previous_hash = previous_hash
         self.data = data
@@ -35,7 +34,6 @@ class Block:
     def validate_block_structure(self) -> bool:
         return (
                 type(self.index) == int
-                and type(self.data) == str
                 and type(self.timestamp) == int
                 and type(self.hash) == str
                 and type(self.previous_hash) == str
@@ -51,7 +49,7 @@ class Block:
         )
 
     def toJson(self):
-        return jsonify(self.__dict__)
+        return self.__dict__
 
     def __str__(self):
         return 'Block {}:\n-data: {}\n-timestamp: {}\n-hash: {}\n-previous_hash: {}\n'.format(

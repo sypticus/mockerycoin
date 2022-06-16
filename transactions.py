@@ -1,5 +1,7 @@
 from json import dumps
 
+from flask import jsonify
+
 import hashutils
 
 COINBASE_AMOUNT: int = 50
@@ -10,11 +12,16 @@ class TxIn:  #unlocks the coins
         self.tx_out_index: int = tx_out_index
         self.signature = None
 
+    def toJson(self):
+        return self.__dict__
 
 class TxOut: #locks the coin to an address
     def __init__(self, amount: float, address: str):
         self.amount: float = amount
         self.address: str = address #this is a pubkey
+
+    def toJson(self):
+        return self.__dict__
 
 class UnspentTxOut:
     def __init__(self, tx_out_id: str, tx_out_index: int, address: str, amount: float):
@@ -30,6 +37,8 @@ class Transaction:
         self.tx_outs: [TxOut] = tx_outs
         self.id = None
 
+    def toJson(self):
+        return self.__dict__
 
     def get_id(self) -> str:
         tx_in_content: str = ''.join([tx_in.tx_out_id + str(tx_in.tx_out_index) for tx_in in self.tx_ins])
@@ -56,6 +65,7 @@ class Transaction:
 
 
         return hashutils.get_signature_string(private_key_string, data_to_sign)
+
 
 
 def get_unspent_tx_outs_from_transactions(transactions: [Transaction]) -> [UnspentTxOut]:
@@ -94,7 +104,8 @@ def updated_unspent_tx_outs(transactions: [Transaction], unspent_tx_outs: [Unspe
 
 
 def process_transactions(transactions: [Transaction], unspent_tx_outs: [UnspentTxOut], block_index: int):
-    validate_transaction_structure(transactions)
+    for transaction in transactions:
+        validate_transaction_structure(transaction)
 
     validate_block_of_transactions(transactions, unspent_tx_outs, block_index)
 
@@ -146,11 +157,33 @@ def validate_address(address: str):
 
 
 def validate_block_of_transactions(transactions: [Transaction], unspent_tx_outs: [UnspentTxOut], block_index: int):
-    for transaction in transactions:
+    validate_coinbase_tx(transactions[0], block_index)
+
+    for transaction in transactions[1:]:
         validate_transaction(transaction, unspent_tx_outs)
 
 
-def validate_transaction(transaction: Transaction, unspent_tx_outs: [UnspentTxOut]) -> bool:
+def validate_coinbase_tx(tx: Transaction, index):
+    if not tx:
+        raise ValueError("Coinbase tx has to exist.")
+
+    if tx.id != tx.get_id():
+        raise ValueError("Coinbase tx has an invalid id")
+
+    if len(tx.tx_ins) != 1:
+        raise ValueError("Coinbase tx must have only 1 txin")
+
+    if tx.tx_ins[0].tx_out_index != index:
+        raise ValueError("TxIn in coinbase must match block height")
+
+    if len(tx.tx_outs) != 1:
+        raise ValueError("invalid number of txOuts in coinbase transaction")
+
+    if tx.tx_outs[0].amount != COINBASE_AMOUNT:
+        raise ValueError("Invalid coinbase amount in coinbase transaction")
+
+
+def validate_transaction(transaction: Transaction, unspent_tx_outs: [UnspentTxOut]):
 
     if transaction.get_id() != transaction.id:
         print("Transaction Id for transaction {} is not current.".format(transaction.id))
@@ -187,3 +220,11 @@ def validate_tx_in(tx_in: TxIn, transaction: Transaction, unspent_tx_outs: [Unsp
         raise ValueError("Signature could not be verified")
 
 
+def generate_coinbase_transaction(address: str, block_index: int) -> Transaction:
+
+    tx_in: TxIn = TxIn('', block_index)
+    tx_in.signature = ''
+
+    coinbase_tx = Transaction([tx_in], [TxOut(COINBASE_AMOUNT, address)])
+    coinbase_tx.id = coinbase_tx.get_id()
+    return coinbase_tx

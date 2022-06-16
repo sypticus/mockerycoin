@@ -25,25 +25,22 @@ class NodeTestCase(unittest.TestCase):
             self.assertEqual(json['host'], 'localhost')  # add assertion here
             self.assertEqual(json['port'], 8001)  # add assertion here
 
-    @patch('transactions.process_transactions')  # Dont want to test Transactions here, just the blockchain
-    def test_mine_blocks(self, transactions_mock):
+    def test_mine_blocks_no_transactions(self):
         with app.test_client() as test_client:
-            transactions_mock.return_value.transactions_mock.return_value = []
             headers = {'Content-type': 'application/json'}
-            response = test_client.post('/mine-block', json={'block_data': 'block 1'}, headers=headers)
+            response = test_client.post('/mine-block', headers=headers)
 
             json = response.json
-            self.assertEqual(json['data'], 'block 1')
+
 
             #Get latest block and confirm it matches
             response = test_client.get('/latest-block', headers=headers)
             self.assertEqual(response.json, json)
 
-
             #Mine a few more blocks
-            test_client.post('/mine-block', json={'block_data': 'block 2'}, headers=headers)
-            test_client.post('/mine-block', json={'block_data': 'block 3'}, headers=headers)
-            test_client.post('/mine-block', json={'block_data': 'block 4'}, headers=headers)
+            test_client.post('/mine-block', headers=headers)
+            test_client.post('/mine-block', headers=headers)
+            test_client.post('/mine-block', headers=headers)
 
             #Call for the full chain
             response = test_client.get('/blocks', headers=headers)
@@ -53,10 +50,7 @@ class NodeTestCase(unittest.TestCase):
             self.assertEqual(len(full_chain), 5)
 
             self.assertEqual(full_chain[0]['data'], 'my genesis block!!')
-            self.assertEqual(full_chain[1]['data'], 'block 1')
-            self.assertEqual(full_chain[2]['data'], 'block 2')
-            self.assertEqual(full_chain[3]['data'], 'block 3')
-            self.assertEqual(full_chain[4]['data'], 'block 4')
+
 
 
     @requests_mock.mock()
@@ -80,6 +74,25 @@ class NodeTestCase(unittest.TestCase):
             peers = response.json
             self.assertEqual(len(peers), 1)
             self.assertEqual(peers[0]['host'], 'testhost')
+
+    def test_mine_blocks_with_transaction(self):
+        with app.test_client() as test_client:
+            #First mine a block so we have some COINBASE
+            headers = {'Content-type': 'application/json'}
+            response = test_client.post('/mine-block', headers=headers)
+
+            #Get the balance, should be 50 from the coinbase block
+            response = test_client.get('/balance', headers=headers)
+            self.assertEqual(response.json, 50)
+
+            headers = {'Content-type': 'application/json'}
+            response = test_client.post('/mine-transaction',  json={'address': '00048ef1ddedf42ca1d0461149cdc7d50502da8eb2f5976296b0752a0771ff8c023bfb8dd8b13880d6eb210141844fe06c0cac357222081d4e4709fb9224ea00fc21', 'amount': 20}, headers=headers)
+
+            json = response.json
+            self.assertEqual(len(json['data']), 2)
+
+            response = test_client.get('/balance', headers=headers)
+            self.assertEqual(response.json, 80)   #50 initial coins, 50 coins on transaction mine, -20 sent away == 80
 
 
     @requests_mock.mock()

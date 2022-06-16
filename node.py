@@ -1,3 +1,5 @@
+import json
+
 from werkzeug.exceptions import HTTPException, BadRequest
 from flask import Flask, g, request, jsonify
 
@@ -7,9 +9,20 @@ from p2p import P2P, NodeAddress
 
 from argparse import ArgumentParser
 
+from wallet import Wallet
+
+
+class ComplexEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if hasattr(obj, 'toJson'):
+            return obj.toJson()
+        else:
+            return json.JSONEncoder.default(self, obj)
+
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-
+app.json_encoder = ComplexEncoder
 
 @app.route('/status')
 def test():
@@ -21,6 +34,11 @@ def get_latest_block():
     return blockchain.get_latest_block().toJson()
 
 
+@app.route('/balance')
+def get_wallet_balance():
+    return jsonify(blockchain.get_wallet_balance(wallet))
+
+
 @app.route('/blocks')
 def get_full_chain():
     return jsonify([block.__dict__ for block in blockchain.chain])
@@ -28,9 +46,17 @@ def get_full_chain():
 
 @app.route('/mine-block', methods=['POST'])
 def mine_block():
+    new_block: Block = blockchain.mine_next_block(wallet)
+    p2p.broadcast_block(new_block)
+    return jsonify(new_block.toJson()), 200
+
+
+@app.route('/mine-transaction', methods=['POST'])
+def mine_transaction():
     req = request.get_json()
-    block_data = get_or_raise(req, 'block_data')
-    new_block: Block = blockchain.generate_next_block(block_data)
+    address = get_or_raise(req, 'address')
+    amount = get_or_raise(req, 'amount')
+    new_block: Block = blockchain.mine_next_block_transaction(address, amount, wallet)
     p2p.broadcast_block(new_block)
     return new_block.toJson(), 200
 
@@ -56,9 +82,8 @@ def add_peer():
         print("Peer {} was new to me, going to ensure I am registered with it.".format(new_peer))
         p2p.register_with_peer(new_peer)
 
-    #TODO: What if peer already exists?
+    # TODO: What if peer already exists?
     return jsonify({"status": "ok"}), 200
-
 
 
 @app.route('/receive-block', methods=['POST'])
@@ -100,19 +125,18 @@ def get_or_raise(values: [], key: str):
         raise BadRequest("{} is a required field.".format(key))
     return values[key]
 
+
 @app.errorhandler(BadRequest)
 def handle_400_error(e: BadRequest):
     return {'message': e.description}, 400
 
 
-
-
-#todo: this is ugly, fix this later
+# todo: this is ugly, fix this later
 host = 'localhost'
 port = 8001
 p2p = P2P(host, port)
 blockchain = Blockchain()
-
+wallet = Wallet()
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -121,5 +145,3 @@ if __name__ == '__main__':
     port = args.port
     p2p = P2P(host, port)
     app.run(host=host, port=port)
-
-

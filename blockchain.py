@@ -5,8 +5,9 @@ from block import Block
 
 import datetime
 
-from transactions import UnspentTxOut
+from transactions import UnspentTxOut, Transaction
 import transactions
+from wallet import Wallet
 
 
 class Blockchain:
@@ -21,9 +22,20 @@ class Blockchain:
         self.chain = [genesis_block]
         self.unspent_tx_outs: [UnspentTxOut] = []
 
+    def mine_next_block_transaction(self, receiver_address, amount, wallet: Wallet) -> Block:
+        tx: Transaction = wallet.create_transaction(receiver_address, amount, self.unspent_tx_outs)
+        coinbase_tx: Transaction = transactions.generate_coinbase_transaction(wallet.pub_key,
+                                                                              self.get_latest_block().index + 1)
+        block_data: [Transaction] = [coinbase_tx, tx]
+        return self.generate_next_block(block_data)
 
+    def mine_next_block(self, wallet: Wallet) -> Block:
+        coinbase_tx: Transaction = transactions.generate_coinbase_transaction(wallet.pub_key,
+                                                                              self.get_latest_block().index + 1)
+        block_data: [Transaction] = [coinbase_tx]
+        return self.generate_next_block(block_data)
 
-    def generate_next_block (self, block_data: str) -> Block:
+    def generate_next_block(self, block_data: [Transaction]) -> Block:
         previous_block: Block = self.get_latest_block()
         next_index: int = previous_block.index + 1
         next_timestamp: int = get_current_timestamp()
@@ -31,6 +43,14 @@ class Blockchain:
         new_block: Block = self.find_block(next_index, previous_block.hash, next_timestamp, block_data, difficulty)
         self.add_block(new_block)
         return new_block
+
+    def add_block(self, new_block: Block):  # Todo: Handle failures
+        validate_new_block(new_block, self.get_latest_block())
+        updated_unspent_tx_outs: [UnspentTxOut] = transactions.process_transactions(new_block.data,
+                                                                                    self.unspent_tx_outs,
+                                                                                    new_block.index)
+        self.unspent_tx_outs = updated_unspent_tx_outs
+        self.chain.append(new_block)
 
     def find_block(self, next_index, previous_hash, next_timestamp, block_data, difficulty) -> Block:
         nonce = 0
@@ -42,13 +62,6 @@ class Blockchain:
                 return new_block
             nonce += 1
 
-    def add_block(self, new_block: Block):  # Todo: Handle failures
-        validate_new_block(new_block, self.get_latest_block())
-        updated_unspent_tx_outs: [UnspentTxOut] = transactions.process_transactions(new_block.data,
-                                                                                    self.unspent_tx_outs,
-                                                                                    new_block.index)
-        self.unspent_tx_outs = updated_unspent_tx_outs
-        self.chain.append(new_block)
 
 
     def get_latest_block(self) -> Block:
@@ -67,6 +80,9 @@ class Blockchain:
         else:
             return latest_block.difficulty
 
+    def get_wallet_balance(self, wallet: Wallet):
+        return wallet.get_balance(self.unspent_tx_outs)
+
     def get_adjusted_difficulty(self) -> int:
         latest_block: Block = self.get_latest_block()
         prev_adjustment_block: Block = self.chain[-self.DIFFICULTY_ADJUSTMENT_INTERVAL]
@@ -78,7 +94,6 @@ class Blockchain:
             return prev_adjustment_block.difficulty - 1
         else:
             return prev_adjustment_block.difficulty
-
 
 
 def get_accumulated_difficulty(chain: [Block]) -> int:

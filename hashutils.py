@@ -44,8 +44,8 @@ def hex_to_bin(hash: str) -> str:
     return ret
 
 
-def get_public_key_from_private (aPrivateKey: str) -> str:
-    return PrivateKey.fromString(aPrivateKey).publicKey().toString(True)
+def get_public_key_from_private(private_key_str: str) -> str:
+    return PrivateKey.fromString(private_key_str).publicKey().toString(True)
 
 
 def get_signature_string(private_key_string: str, data_to_sign) -> str:
@@ -62,3 +62,8 @@ def verify_signature(pub_key_str, signature_str, message) -> bool:
 
 def signature_from_string(signature_str: str) -> Signature:
     return Signature.fromDer(hex_to_byte_array(signature_str))
+
+
+def generate_private_key() -> str:
+    private_key = PrivateKey()
+    return private_key.toString()
