@@ -12,6 +12,17 @@ class TxIn:  #unlocks the coins
         self.tx_out_index: int = tx_out_index
         self.signature = None
 
+    @classmethod
+    def from_dict(cls, dict):
+        new_tx_in = cls(dict['tx_out_id'], dict['tx_out_index'])
+        new_tx_in.signature = dict.get('signature')
+        return new_tx_in
+
+    def __str__(self):
+        return str(self.__dict__)
+    def __repr__(self):
+        return str(self.__dict__)
+
     def toJson(self):
         return self.__dict__
 
@@ -20,9 +31,18 @@ class TxOut: #locks the coin to an address
         self.amount: float = amount
         self.address: str = address #this is a pubkey
 
+    @classmethod
+    def from_dict(cls, dict):
+        return cls(dict['amount'], dict['address'])
+
     def toJson(self):
         return self.__dict__
 
+
+    def __str__(self):
+        return str(self.__dict__)
+    def __repr__(self):
+        return str(self.__dict__)
 
 class UnspentTxOut:
     def __init__(self, tx_out_id: str, tx_out_index: int, address: str, amount: float):
@@ -31,6 +51,10 @@ class UnspentTxOut:
         self.address: str = address
         self.amount: float = amount
 
+    def __str__(self):
+        return str(self.__dict__)
+    def __repr__(self):
+        return str(self.__dict__)
 
 class Transaction:
     def __init__(self, tx_ins: [TxIn], tx_outs:[TxOut]):
@@ -41,10 +65,18 @@ class Transaction:
     def toJson(self):
         return self.__dict__
 
+    def __str__(self):
+        return str(self.__dict__)
+
+    def __repr__(self):
+        return str(self.__dict__)
+
     @classmethod
     def from_dict(cls, dict):
-        new_tx = cls(dict.tx_ins, dict.tx_outs)
-        new_tx.id = dict.id
+        tx_ins = [TxIn.from_dict(tx_in) for tx_in in dict.get('tx_ins')]
+        tx_outs = [TxOut.from_dict(tx_out) for tx_out in dict.get('tx_outs')]
+        new_tx = cls(tx_ins, tx_outs)
+        new_tx.id = dict.get('id')
         return new_tx
 
     def get_id(self) -> str:
@@ -146,7 +178,7 @@ def is_valid_tx_out_structure(tx_out: TxOut):
         raise ValueError('TXOut Validation Failed: txout is missing')
     if type(tx_out.address) != str:
         raise ValueError('invalid address type in txOut')
-    if type(tx_out.amount) != int:
+    if type(tx_out.amount) not in (float, int):
         raise ValueError('invalid amount type in txOut')
 
     validate_address(tx_out.address)
@@ -191,7 +223,8 @@ def validate_coinbase_tx(tx: Transaction, index):
 
 
 def validate_transaction(transaction: Transaction, unspent_tx_outs: [UnspentTxOut]):
-
+    print("TXUs: {}".format(unspent_tx_outs))
+    print("tx: {}".format(transaction))
     if transaction.get_id() != transaction.id:
         print("Transaction Id for transaction {} is not current.".format(transaction.id))
         raise ValueError("Transaction Id for transaction {} is not current.".format(transaction.id))

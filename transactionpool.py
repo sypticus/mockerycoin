@@ -32,7 +32,7 @@ class TransactionPool:
                 if not has_tx_in(tx_in, unspent_tx_outs):
                     invalid_txs.append(tx)
                     break
-        return [tx for tx in unspent_tx_outs if tx not in invalid_txs]
+        self.transaction_pool = [tx for tx in self.transaction_pool if tx not in invalid_txs]
 
 def has_tx_in(tx_in: TxIn, unspent_tx_outs: [UnspentTxOut]):
     if any(utxo.tx_out_id == tx_in.tx_out_id and utxo.tx_out_index == tx_in.tx_out_index for utxo in unspent_tx_outs):

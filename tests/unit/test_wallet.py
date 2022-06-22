@@ -15,13 +15,13 @@ class WalletTestCase(unittest.TestCase):
             os.remove(wallet.WALLET_LOCATION)
 
     def test_create_wallet(self):
-        my_wallet = Wallet()
+        my_wallet = Wallet('')
 
-        self.assertTrue(exists(wallet.WALLET_LOCATION))
+        self.assertTrue(exists("_{}".format(wallet.WALLET_LOCATION)))
         self.assertEqual(my_wallet.pub_key, hashutils.get_public_key_from_private(my_wallet.private_key))
 
     def test_get_balance(self):
-        my_wallet = Wallet()
+        my_wallet = Wallet('')
         utxo_1 = UnspentTxOut('tx_out1', 0, my_wallet.pub_key, 5)
         utxo_2 = UnspentTxOut('tx_out2', 0, '', 3)
         utxo_3 = UnspentTxOut('tx_out3', 0, my_wallet.pub_key, 2)
@@ -33,7 +33,7 @@ class WalletTestCase(unittest.TestCase):
 
 
     def test_create_transaction(self):
-        my_wallet = Wallet()
+        my_wallet = Wallet('')
 
         utxo_1 = UnspentTxOut('tx_out1', 0, my_wallet.pub_key, 5)
         utxo_2 = UnspentTxOut('tx_out2', 0, my_wallet.pub_key, 3)
@@ -51,7 +51,7 @@ class WalletTestCase(unittest.TestCase):
 
 
     def test_create_transaction_2(self):
-        my_wallet = Wallet()
+        my_wallet = Wallet('')
 
         utxo_1 = UnspentTxOut('tx_out1', 0, my_wallet.pub_key, 5)
         utxo_2 = UnspentTxOut('tx_out2', 0, my_wallet.pub_key, 3)

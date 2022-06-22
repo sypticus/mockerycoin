@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 import requests
 
@@ -42,6 +43,11 @@ class P2P:
 
         return Block.from_dict(block)
 
+    def query_transaction_pool(self, peer: NodeAddress):
+        resp = requests.get("http://{}/transaction-pool".format(peer))
+        txs: [Transaction] = resp.json()
+        return txs
+
     def broadcast_block(self, block: Block):
         headers = {'Content-type': 'application/json'}
         for peer in self.peers:
@@ -66,7 +72,7 @@ class P2P:
             }
 
             print("Broadcasting transaction to peer: {}".format(peer))
-            resp = requests.post("http://{}/receive-transaction".format(peer), json=body, headers=headers)
+            resp = requests.post("http://{}/receive-transactions".format(peer), json=body, headers=headers)
 
 
     def query_entire_chain(self, peer: NodeAddress):

@@ -1,4 +1,4 @@
-
+import json
 
 import hashutils
 from transactions import Transaction
@@ -16,7 +16,8 @@ class Block:
 
     @classmethod
     def from_dict(cls, dict):
-        return cls(dict['index'], dict['hash'], dict['previous_hash'], dict['timestamp'], dict['data'], dict['nonce'], dict['difficulty'])
+        transactions = [Transaction.from_dict(data) for data in dict['data']]
+        return cls(dict['index'], dict['hash'], dict['previous_hash'], dict['timestamp'], transactions, dict['nonce'], dict['difficulty'])
 
     @classmethod
     def partial(cls, dict): #For unit testing only
@@ -29,6 +30,7 @@ class Block:
                    dict.get('difficulty'))
 
     def calculate_hash_for_block(self) -> str:
+        print("Calculating hash for data: {}".format(self.data))
         return hashutils.calculate_hash(self.index, self.previous_hash, self.timestamp, self.data, self.nonce, self.difficulty)
 
     def validate_block_structure(self) -> bool:

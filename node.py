@@ -36,6 +36,11 @@ def get_wallet_balance():
     return jsonify(blockchain.get_wallet_balance(wallet))
 
 
+@app.route('/pubkey')
+def get_wallet_pubkey():
+    return jsonify(wallet.pub_key), 200
+
+
 @app.route('/blocks')
 def get_full_chain():
     return jsonify([block.__dict__ for block in blockchain.chain])
@@ -82,13 +87,14 @@ def receive_transaction():
     peer = NodeAddress(host, port)
 
     print("Peer {} is sending me its transaction pool".format(peer))
-    txs: [Transaction] = json.loads(pool, object_hook=lambda d: SimpleNamespace(**d))
-    handle_transaction_from_peer(txs)
+
+    handle_transaction_from_peer(json.loads(pool))
     return jsonify({"status": "ok"}), 200
 
 
-def handle_transaction_from_peer(tx_dicts):
-    for tx in tx_dicts:
+def handle_transaction_from_peer(txs):
+
+    for tx in txs:
         try:
             tx = Transaction.from_dict(tx)
             blockchain.handle_received_transaction(tx)
@@ -116,6 +122,8 @@ def add_peer():
         peers_latest_block: Block = p2p.query_lastest_block(new_peer)
         handle_block_from_peer(peers_latest_block, new_peer)
 
+        peers_transaction_pool = p2p.query_transaction_pool(new_peer)
+        handle_transaction_from_peer(peers_transaction_pool)
         print("Peer {} was new to me, going to ensure I am registered with it.".format(new_peer))
         p2p.register_with_peer(new_peer)
 
@@ -132,8 +140,7 @@ def receive_block():
     peer = NodeAddress(host, port)
 
     print("Peer {} is sending me its latest block.".format(peer))
-
-    handle_block_from_peer(Block.from_dict(block), peer)
+    handle_block_from_peer(Block.from_dict(json.loads(block)), peer)
     return jsonify({"status": "ok"}), 200
 
 
@@ -144,14 +151,15 @@ def handle_block_from_peer(new_block: Block, peer: NodeAddress):
 
         if my_latest_block.hash == new_block.previous_hash:
             print("New nodes latest block is 1 block ahead, adding it to my chain")
-
+            print(new_block)
             if blockchain.add_block(new_block):
                 print("Block added to chain, broadcasting new block to all peers")
                 p2p.broadcast_block(new_block)
 
         else:
-            print("My chain is shorter than the change of the latest block, pulling entire chaing from peer.")
+            print("My chain is shorter than the change of the latest block, pulling entire chain from peer.")
             new_chain = p2p.query_entire_chain(peer)
+            print(new_chain)
             blockchain.replace_chain(new_chain)
     else:
         print("Received block is not ahead of my current block, doing nothing.")
@@ -173,12 +181,13 @@ host = 'localhost'
 port = 8001
 p2p = P2P(host, port)
 blockchain = Blockchain()
-wallet = Wallet()
+wallet = Wallet(port)
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-p', '--port', type=int, default=8001)
     args = parser.parse_args()
     port = args.port
+    wallet = Wallet(port)
     p2p = P2P(host, port)
     app.run(host=host, port=port)

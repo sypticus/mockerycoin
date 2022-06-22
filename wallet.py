@@ -1,5 +1,4 @@
 from os.path import exists
-
 import hashutils
 from transactions import UnspentTxOut, TxIn, TxOut, Transaction
 
@@ -7,18 +6,19 @@ WALLET_LOCATION = 'wallet_file.txt'  #TODO encrypt this
 
 
 class Wallet:
-    def __init__(self):
-        if not exists(WALLET_LOCATION):
+    def __init__(self, port):
+        if not exists("{}_{}".format(port, WALLET_LOCATION)):
             _private_key = hashutils.generate_private_key()
-            f = open(WALLET_LOCATION, "w")
+            f = open("{}_{}".format(port, WALLET_LOCATION), "w")
             f.write(_private_key)
             f.close()
         else:
-            f = open(WALLET_LOCATION, "r")
+            f = open("{}_{}".format(port, WALLET_LOCATION), "r")
             _private_key: str = f.read()
             f.close()
         self.private_key = _private_key
         self.pub_key = self.get_pub_key()
+
 
     def get_pub_key(self):
         return hashutils.get_public_key_from_private(self.private_key)

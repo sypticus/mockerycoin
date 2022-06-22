@@ -62,6 +62,7 @@ class Blockchain:
 
     def add_block(self, new_block: Block):  # Todo: Handle failures
         validate_new_block(new_block, self.get_latest_block())
+
         updated_unspent_tx_outs: [UnspentTxOut] = transactions.process_transactions(new_block.data,
                                                                                     self.unspent_tx_outs,
                                                                                     new_block.index)
@@ -154,5 +155,5 @@ def validate_chain(blockchain: [Block]):
     return True
 
 genesis_block: Block = Block(
-    0, '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca', None, 1465154705, 'my genesis block!!', 0, 0
+    0, '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca', None, 1465154705, [], 0, 0
 )
