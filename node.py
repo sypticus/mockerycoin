@@ -1,28 +1,25 @@
 import json
+from types import SimpleNamespace
 
 from werkzeug.exceptions import HTTPException, BadRequest
 from flask import Flask, g, request, jsonify
 
+import utils
 from block import Block
 from blockchain import Blockchain
 from p2p import P2P, NodeAddress
 
 from argparse import ArgumentParser
 
+from transactions import Transaction
 from wallet import Wallet
 
 
-class ComplexEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if hasattr(obj, 'toJson'):
-            return obj.toJson()
-        else:
-            return json.JSONEncoder.default(self, obj)
 
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-app.json_encoder = ComplexEncoder
+app.json_encoder = utils.ComplexEncoder
 
 @app.route('/status')
 def test():
@@ -44,11 +41,16 @@ def get_full_chain():
     return jsonify([block.__dict__ for block in blockchain.chain])
 
 
+@app.route('/transaction-pool')
+def get_transaction_pool():
+    return jsonify(blockchain.transaction_pool.get_transactions())
+
+
 @app.route('/mine-block', methods=['POST'])
 def mine_block():
     new_block: Block = blockchain.mine_next_block(wallet)
     p2p.broadcast_block(new_block)
-    return jsonify(new_block.toJson()), 200
+    return jsonify(new_block), 200
 
 
 @app.route('/mine-transaction', methods=['POST'])
@@ -59,6 +61,41 @@ def mine_transaction():
     new_block: Block = blockchain.mine_next_block_transaction(address, amount, wallet)
     p2p.broadcast_block(new_block)
     return new_block.toJson(), 200
+
+
+@app.route('/send-transaction', methods=['POST'])
+def send_transaction():
+    req = request.get_json()
+    address = get_or_raise(req, 'address')
+    amount = get_or_raise(req, 'amount')
+    new_transaction: Transaction = blockchain.send_transaction(address, amount, wallet)
+    p2p.broadcast_transaction_pool(blockchain.transaction_pool.get_transactions())
+    return jsonify(new_transaction), 200
+
+
+@app.route('/receive-transactions', methods=['POST'])
+def receive_transaction():
+    req = request.get_json()
+    pool = get_or_raise(req, 'pool')
+    host = get_or_raise(req, 'host')
+    port = get_or_raise(req, 'port')
+    peer = NodeAddress(host, port)
+
+    print("Peer {} is sending me its transaction pool".format(peer))
+    txs: [Transaction] = json.loads(pool, object_hook=lambda d: SimpleNamespace(**d))
+    handle_transaction_from_peer(txs)
+    return jsonify({"status": "ok"}), 200
+
+
+def handle_transaction_from_peer(tx_dicts):
+    for tx in tx_dicts:
+        try:
+            tx = Transaction.from_dict(tx)
+            blockchain.handle_received_transaction(tx)
+            p2p.broadcast_transaction_pool(blockchain.transaction_pool.get_transactions())
+        except ValueError as e:
+            print("Adding received transaction threw an error. Ignoring and moving on.")
+            return
 
 
 @app.route('/peers')

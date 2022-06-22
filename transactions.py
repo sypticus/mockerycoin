@@ -23,6 +23,7 @@ class TxOut: #locks the coin to an address
     def toJson(self):
         return self.__dict__
 
+
 class UnspentTxOut:
     def __init__(self, tx_out_id: str, tx_out_index: int, address: str, amount: float):
         self.tx_out_id: str = tx_out_id
@@ -39,6 +40,12 @@ class Transaction:
 
     def toJson(self):
         return self.__dict__
+
+    @classmethod
+    def from_dict(cls, dict):
+        new_tx = cls(dict.tx_ins, dict.tx_outs)
+        new_tx.id = dict.id
+        return new_tx
 
     def get_id(self) -> str:
         tx_in_content: str = ''.join([tx_in.tx_out_id + str(tx_in.tx_out_index) for tx_in in self.tx_ins])
@@ -205,7 +212,7 @@ def validate_transaction(transaction: Transaction, unspent_tx_outs: [UnspentTxOu
 
 
 
-def validate_tx_in(tx_in: TxIn, transaction: Transaction, unspent_tx_outs: [UnspentTxOut]) -> bool:
+def validate_tx_in(tx_in: TxIn, transaction: Transaction, unspent_tx_outs: [UnspentTxOut]):
 
     referenced_utxo: UnspentTxOut = find_unspent_tx_out(tx_in.tx_out_id, tx_in.tx_out_index, unspent_tx_outs)
     if not referenced_utxo:

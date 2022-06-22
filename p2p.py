@@ -1,7 +1,10 @@
-import requests
-from flask import g
+import json
 
+import requests
+
+from utils import ComplexEncoder
 from block import Block
+from transactions import Transaction
 
 
 class NodeAddress:
@@ -46,12 +49,25 @@ class P2P:
             body = {
                 'host': self.my_host,
                 'port': self.my_port,
-                'block': block.__dict__
+                'block': json.dumps(block, cls=ComplexEncoder)
             }
 
             print("Broadcasting to peer: {}".format(peer))
             resp = requests.post("http://{}/receive-block".format(peer), json=body, headers=headers)
-            print(resp.json())
+
+    def broadcast_transaction_pool(self, transactions: [Transaction]):
+        headers = {'Content-type': 'application/json'}
+        for peer in self.peers:
+            peer: NodeAddress = peer
+            body = {
+                'host': self.my_host,
+                'port': self.my_port,
+                'pool': json.dumps([transaction for transaction in transactions], cls=ComplexEncoder)
+            }
+
+            print("Broadcasting transaction to peer: {}".format(peer))
+            resp = requests.post("http://{}/receive-transaction".format(peer), json=body, headers=headers)
+
 
     def query_entire_chain(self, peer: NodeAddress):
         resp = requests.get("http://{}/blocks".format(peer))
@@ -63,3 +79,4 @@ class P2P:
         headers = {'Content-type': 'application/json'}
         body = {"host": self.my_host, "port": self.my_port}
         requests.post("http://{}/peer".format(peer), json=body, headers=headers)
+

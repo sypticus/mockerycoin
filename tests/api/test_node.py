@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest.mock import patch
 
@@ -29,7 +30,7 @@ class NodeTestCase(unittest.TestCase):
         with app.test_client() as test_client:
             headers = {'Content-type': 'application/json'}
             response = test_client.post('/mine-block', headers=headers)
-
+            self.assertEqual(response.status_code, 200)
             json = response.json
 
 
@@ -51,16 +52,94 @@ class NodeTestCase(unittest.TestCase):
 
             self.assertEqual(full_chain[0]['data'], 'my genesis block!!')
 
+    @requests_mock.mock()
+    def test_send_transaction(self, m):
+        with app.test_client() as test_client:
+            register_w_peer_post = m.post('http://testhost:8002/peer')
+            send_block_to_peer_post = m.post('http://testhost:8002/receive-block')
+            send_transaction_to_peer_post = m.post('http://testhost:8002/receive-transaction')
+
+
+            headers = {'Content-type': 'application/json'}
+
+            #add a peer
+            genesis_block = {'data': 'my genesis block!!',
+                             'hash': '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca', 'index': 0,
+                             'previous_hash': None, 'nonce':0, 'timestamp': 1465154705, 'difficulty': 0}
+
+            m.get('http://testhost:8002/latest-block', json=genesis_block)
+            response = test_client.post('/peer', json={'host': 'testhost', 'port': 8002}, headers=headers)
+            self.assertEqual(response.status_code, 200)
+
+            #mine a block so we have some coins
+            headers = {'Content-type': 'application/json'}
+            response = test_client.post('/mine-block', headers=headers)
+            self.assertEqual(response.status_code, 200)
+
+
+            # Get the balance, should be 50 from the coinbase block
+            response = test_client.get('/balance', headers=headers)
+            self.assertEqual(response.json, 50)
+
+            #Now we want to send one coin to an address
+            json_body = {"address": "00048ef1ddedf42ca1d0461149cdc7d50502da8eb2f5976296b0752a0771ff8c023bfb8dd8b13880d6eb210141844fe06c0cac357222081d4e4709fb9224ea00fc21",
+                       'amount': 1}
+
+            response = test_client.post('/send-transaction', json=json_body, headers=headers)
+            self.assertEqual(response.status_code, 200)
+
+            #Now make sure the transaction is there.
+            response = test_client.get('/transaction-pool', headers=headers)
+            transactions = response.json
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(transactions), 1)
+
+
+    @requests_mock.mock()
+    def test_mine_blocks_transaction_pool(self, m):
+        with app.test_client() as test_client:
+            m.post('http://testhost:8002/peer')
+            m.post('http://testhost:8002/receive-block')
+            m.post('http://testhost:8002/receive-transaction')
+            headers = {'Content-type': 'application/json'}
+            transaction_pool = {'host': 'localhost', 'port': 8001, 'pool': '[{"tx_ins": [{"tx_out_id": "d72773cd3c39988e9a1ebf40ba9c3dcee5ec2738482ebc4c38c22aac91942f12", "tx_out_index": 0, "signature": "304602210098945858b615896a711a3a4c36858fd7fe041dcd126a7bd501e9c04e5e48c086022100aa4fba9bee7d8e100bc3d019cd21c36a308aed5bf570466269d99ce5142c8060"}], "tx_outs": [{"amount": 1, "address": "00048ef1ddedf42ca1d0461149cdc7d50502da8eb2f5976296b0752a0771ff8c023bfb8dd8b13880d6eb210141844fe06c0cac357222081d4e4709fb9224ea00fc21"}, {"amount": 49, "address": "000455c273c248ac9eb9045b689603fcda9863fb9b01fb9a2abb97a93783043aedecc9305d301db9dcb36af547fdf59835404ffc40f13173b190fda55afabf0471f8"}], "id": "2c90d70e52896ecb29daa9fa4015303d90079507eb5e7a185d36a8f789f23558"}]'}
+
+            # mine a block so we have some coins
+            headers = {'Content-type': 'application/json'}
+            response = test_client.post('/mine-block', headers=headers)
+
+            # Now we want to send one coin to an address
+            json_body = {
+                "address": "00048ef1ddedf42ca1d0461149cdc7d50502da8eb2f5976296b0752a0771ff8c023bfb8dd8b13880d6eb210141844fe06c0cac357222081d4e4709fb9224ea00fc21",
+                'amount': 1}
+
+            response = test_client.post('/send-transaction', json=json_body, headers=headers)
+            self.assertEqual(response.status_code, 200)
+
+            #Mine a block
+            test_client.post('/mine-block', headers=headers)
+            self.assertEqual(response.status_code, 200)
+
+            #Call for the full chain
+            response = test_client.get('/blocks', headers=headers)
+
+            full_chain = response.json
+            print(full_chain)
+            self.assertEqual(len(full_chain), 3)
+
+
 
 
     @requests_mock.mock()
     def test_add_peer_no_new_blocks(self, m):
-        genesis_block = {'data': 'my genesis block!!', 'hash': '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca', 'index': 0, 'previous_hash': None, 'timestamp': 1465154705}
+        genesis_block = {'data': 'my genesis block!!', 'hash': '2ed4d17ce6cca7550d4024bba70be5287ee71cc871853ccf9379e68558f4b1ca', 'index': 0, 'previous_hash': None, 'timestamp': 1465154705, 'nonce': 0, 'difficulty': 0}
         with app.test_client() as test_client:
             m.get('http://testhost:8002/latest-block', json=genesis_block)
             headers = {'Content-type': 'application/json'}
-            response = test_client.post('/peer', json={'host': 'testhost', 'port': 8002}, headers=headers)
+            register_w_peer_post = m.post('http://testhost:8002/peer')
 
+            response = test_client.post('/peer', json={'host': 'testhost', 'port': 8002}, headers=headers)
+            self.assertEqual(response.status_code, 200)
 
             # Call for the full chain
             response = test_client.get('/blocks', headers=headers)
@@ -80,6 +159,7 @@ class NodeTestCase(unittest.TestCase):
             #First mine a block so we have some COINBASE
             headers = {'Content-type': 'application/json'}
             response = test_client.post('/mine-block', headers=headers)
+            self.assertEqual(response.status_code, 200)
 
             #Get the balance, should be 50 from the coinbase block
             response = test_client.get('/balance', headers=headers)
@@ -87,6 +167,7 @@ class NodeTestCase(unittest.TestCase):
 
             headers = {'Content-type': 'application/json'}
             response = test_client.post('/mine-transaction',  json={'address': '00048ef1ddedf42ca1d0461149cdc7d50502da8eb2f5976296b0752a0771ff8c023bfb8dd8b13880d6eb210141844fe06c0cac357222081d4e4709fb9224ea00fc21', 'amount': 20}, headers=headers)
+            self.assertEqual(response.status_code, 200)
 
             json = response.json
             self.assertEqual(len(json['data']), 2)
@@ -108,8 +189,13 @@ class NodeTestCase(unittest.TestCase):
 
         with app.test_client() as test_client:
             m.get('http://testhost:8002/latest-block', json=new_block)
+            register_w_peer_post = m.post('http://testhost:8002/peer')
+
             headers = {'Content-type': 'application/json'}
             response = test_client.post('/peer', json={'host': 'testhost', 'port': 8002}, headers=headers)
+            self.assertEqual(response.status_code, 200)
+
+            self.assertEqual(register_w_peer_post.last_request.json(), {'host': 'localhost', 'port': 8001})
 
             # Call for the full chain
             response = test_client.get('/blocks', headers=headers)
@@ -145,9 +231,11 @@ class NodeTestCase(unittest.TestCase):
         with app.test_client() as test_client:
             m.get('http://testhost:8002/latest-block', json=new_block)
             m.get('http://testhost:8002/blocks', json=full_chain)
+            register_w_peer_post = m.post('http://testhost:8002/peer')
 
             headers = {'Content-type': 'application/json'}
             response = test_client.post('/peer', json={'host': 'testhost', 'port': 8002}, headers=headers)
+            self.assertEqual(response.status_code, 200)
 
             # Call for the full chain
             response = test_client.get('/blocks', headers=headers)

@@ -5,6 +5,7 @@ from block import Block
 
 import datetime
 
+from transactionpool import TransactionPool
 from transactions import UnspentTxOut, Transaction
 import transactions
 from wallet import Wallet
@@ -21,9 +22,22 @@ class Blockchain:
     def __init__(self):
         self.chain = [genesis_block]
         self.unspent_tx_outs: [UnspentTxOut] = []
+        self.transaction_pool = TransactionPool()
+
+
+
+    def send_transaction(self, address: str, amount: float, wallet) -> Transaction:
+        tx: Transaction = wallet.create_transaction(address, amount, self.unspent_tx_outs, self.transaction_pool.get_transactions())
+        self.transaction_pool.add_to_transaction_pool(tx, self.unspent_tx_outs)
+        return tx
+
+    def handle_received_transaction(self, transaction: Transaction):
+        self.transaction_pool.add_to_transaction_pool(transaction, self.unspent_tx_outs)
+
+
 
     def mine_next_block_transaction(self, receiver_address, amount, wallet: Wallet) -> Block:
-        tx: Transaction = wallet.create_transaction(receiver_address, amount, self.unspent_tx_outs)
+        tx: Transaction = wallet.create_transaction(receiver_address, amount, self.unspent_tx_outs, self.transaction_pool.get_transactions())
         coinbase_tx: Transaction = transactions.generate_coinbase_transaction(wallet.pub_key,
                                                                               self.get_latest_block().index + 1)
         block_data: [Transaction] = [coinbase_tx, tx]
@@ -32,7 +46,9 @@ class Blockchain:
     def mine_next_block(self, wallet: Wallet) -> Block:
         coinbase_tx: Transaction = transactions.generate_coinbase_transaction(wallet.pub_key,
                                                                               self.get_latest_block().index + 1)
+
         block_data: [Transaction] = [coinbase_tx]
+        block_data.extend(self.transaction_pool.get_transactions())
         return self.generate_next_block(block_data)
 
     def generate_next_block(self, block_data: [Transaction]) -> Block:
@@ -50,6 +66,7 @@ class Blockchain:
                                                                                     self.unspent_tx_outs,
                                                                                     new_block.index)
         self.unspent_tx_outs = updated_unspent_tx_outs
+        self.transaction_pool.update_transaction_pool(self.unspent_tx_outs)
         self.chain.append(new_block)
 
     def find_block(self, next_index, previous_hash, next_timestamp, block_data, difficulty) -> Block:

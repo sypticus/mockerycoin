@@ -4,7 +4,7 @@ from os.path import exists
 
 import hashutils
 import wallet
-from transactions import UnspentTxOut, TxOut
+from transactions import UnspentTxOut, TxOut, TxIn, Transaction
 from wallet import Wallet
 
 
@@ -38,7 +38,7 @@ class WalletTestCase(unittest.TestCase):
         utxo_1 = UnspentTxOut('tx_out1', 0, my_wallet.pub_key, 5)
         utxo_2 = UnspentTxOut('tx_out2', 0, my_wallet.pub_key, 3)
 
-        tx = my_wallet.create_transaction('some_pub_key', 6, [utxo_1, utxo_2])
+        tx = my_wallet.create_transaction('some_pub_key', 6, [utxo_1, utxo_2], [])
 
         self.assertEqual(len(tx.tx_outs), 2)
         tx_out1: TxOut = tx.tx_outs[0]
@@ -56,7 +56,7 @@ class WalletTestCase(unittest.TestCase):
         utxo_1 = UnspentTxOut('tx_out1', 0, my_wallet.pub_key, 5)
         utxo_2 = UnspentTxOut('tx_out2', 0, my_wallet.pub_key, 3)
 
-        tx = my_wallet.create_transaction('some_pub_key', 4, [utxo_1, utxo_2])
+        tx = my_wallet.create_transaction('some_pub_key', 4, [utxo_1, utxo_2], [])
 
         self.assertEqual(len(tx.tx_outs), 2)
         tx_out1: TxOut = tx.tx_outs[0]
@@ -69,4 +69,22 @@ class WalletTestCase(unittest.TestCase):
 
 
 
+
+    def test_filter_tx_pool_transactions(self):
+        tx_out1 = TxOut(15, 'pub_key')
+        tx_in1 = TxIn('tx_out_1', 0)
+        tx_in2 = TxIn('tx_out_2', 0)
+        transaction1 = Transaction([tx_in1, tx_in2], [tx_out1])
+
+        tx_out2 = TxOut(15, 'pub_key')
+        tx_in3 = TxIn('tx_out_3', 0)
+        transaction2 = Transaction([tx_in3], [tx_out2])
+
+
+        utxo_1 = UnspentTxOut('tx_out_1', 0, 'some_addr', 2)
+        utxo_2 = UnspentTxOut('tx_out_4', 0, 'some_addr', 2)
+        transactions = wallet.filter_tx_pool_transactions([utxo_1, utxo_2], [transaction1, transaction2])
+
+        self.assertEqual(len(transactions), 1)
+        self.assertEqual(transactions[0].tx_out_id, 'tx_out_4')
 

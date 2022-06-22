@@ -34,16 +34,22 @@ class Wallet:
     def get_unspent_tx_outs(self, unspent_tx_outs: [UnspentTxOut]) -> [UnspentTxOut]:
         return [unspent_tx_out for unspent_tx_out in unspent_tx_outs if unspent_tx_out.address  == self.pub_key]
 
-    def create_transaction(self, receiving_address: str, amount_to_send: float, unspent_tx_outs: [UnspentTxOut]) -> Transaction:
+    def create_transaction(self, receiving_address: str, amount_to_send: float, unspent_tx_outs: [UnspentTxOut], transaction_pool: [Transaction]) -> Transaction:
         my_utxos = self.get_unspent_tx_outs(unspent_tx_outs)
+        my_utxos = filter_tx_pool_transactions(my_utxos, transaction_pool)
+
         unspent_tx_outs_to_spend, extra_amount = find_tx_outs_for_amount(amount_to_send, my_utxos)
         unsigned_tx_ins: [TxIn] = []
         for utxo in unspent_tx_outs_to_spend:
             unsigned_tx_ins.append(TxIn(utxo.tx_out_id, utxo.tx_out_index))
 
+
+
         tx_outs = [TxOut(amount_to_send, receiving_address)]
         if extra_amount != 0: #When summing up the totals from utxos, there was some left over. It needs to be a new TXO back to our own wallet
             tx_outs.append(TxOut(extra_amount, self.pub_key))
+
+
 
         tx: Transaction = Transaction(unsigned_tx_ins, tx_outs)
         tx.id = tx.get_id()
@@ -53,6 +59,22 @@ class Wallet:
             tx_in.signature = tx.sign_tx_in(idx, self.private_key, my_utxos)
 
         return tx
+
+
+
+#Filter out any tx's that have a tx_in that are in the tx pool.
+def filter_tx_pool_transactions(unspent_tx_outs: [UnspentTxOut], transaction_pool: [Transaction]) -> [UnspentTxOut]:
+    tx_ins = []
+    for transaction in transaction_pool:
+        tx_ins.extend(transaction.tx_ins)
+
+    to_keep: [UnspentTxOut] = []
+    for utxo in unspent_tx_outs:
+        if not next((tx_in for tx_in in tx_ins if
+                     tx_in.tx_out_index == utxo.tx_out_index and tx_in.tx_out_id == utxo.tx_out_id),
+                    None):
+            to_keep.append(utxo)
+    return to_keep
 
 def find_tx_outs_for_amount (amount: float, unspent_tx_outs: [UnspentTxOut]):
     cumulative_amount = 0
